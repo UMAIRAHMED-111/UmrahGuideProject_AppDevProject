@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "585485006925",
+    "project_id": "umrah-guide-53296",
+    "storage_bucket": "umrah-guide-53296.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:585485006925:android:5bcb3a8cdc2e3a926f8404",
+        "android_client_info": {
+          "package_name": "com.example.umrah_guide"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBmTLXEkTHvY03MMxypmO9o69KUUsJuF6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

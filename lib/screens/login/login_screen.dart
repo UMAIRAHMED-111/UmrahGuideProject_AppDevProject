@@ -1,6 +1,16 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../constants/assets.dart';
+import '../../services/auth_service.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_event.dart';
+import '../../blocs/auth/auth_state.dart';
+import '../home/home_screen.dart';
+import '../../widgets/ziyarah_loader.dart';
+import '../../widgets/ziyarah_navigator.dart';
+import '../main_shell.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,9 +23,11 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final AuthService _authService = AuthService();
 
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
+  bool _isSignUp = false;
 
   @override
   void initState() {
@@ -26,7 +38,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
 
     _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
-
     _animController.forward();
   }
 
@@ -38,8 +49,42 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
+  void _showError(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (context) => AuthBloc(authService: _authService),
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLoading) {
+            ZiyarahNavigator.showLoader(context, message: state.message);
+          } else if (state is AuthSuccess) {
+            ZiyarahNavigator.hideLoader(context);
+            ZiyarahNavigator.pushReplacement(
+              context,
+              const MainShell(),
+              loadingMessage: 'Loading main screen...',
+            );
+          } else if (state is AuthError) {
+            ZiyarahNavigator.hideLoader(context);
+            _showError(state.message);
+          } else if (state is AuthToggleMode) {
+            _isSignUp = state.isSignUp;
+          }
+        },
+        child: _buildUI(),
+      ),
+    );
+  }
+
+  Widget _buildUI() {
     final size = MediaQuery.of(context).size;
     return Scaffold(
       body: Stack(
@@ -130,24 +175,68 @@ class _LoginScreenState extends State<LoginScreen>
                         ),
                         const SizedBox(height: 24),
 
-                        // ✅ Login Button
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF32D27F),
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                            elevation: 8,
-                          ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
+                        // ✅ Login/Sign Up Button
+                        BlocBuilder<AuthBloc, AuthState>(
+                          builder: (context, state) {
+                            return ElevatedButton(
+                              onPressed: state is AuthLoading
+                                  ? null
+                                  : () {
+                                      context.read<AuthBloc>().add(
+                                            EmailAuthRequested(
+                                              email: _emailController.text,
+                                              password: _passwordController.text,
+                                              isSignUp: _isSignUp,
+                                            ),
+                                          );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF32D27F),
+                                minimumSize: const Size.fromHeight(50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                elevation: 8,
+                              ),
+                              child: state is AuthLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                            Colors.black),
+                                      ),
+                                    )
+                                  : Text(
+                                      _isSignUp ? 'Sign Up' : 'Login',
+                                      style: const TextStyle(
+                                        fontFamily: 'Cairo',
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Toggle between Login and Sign Up
+                        TextButton(
+                          onPressed: () {
+                            context.read<AuthBloc>().add(
+                                  ToggleAuthMode(!_isSignUp),
+                                );
+                          },
+                          child: Text(
+                            _isSignUp
+                                ? 'Already have an account? Login'
+                                : 'Don\'t have an account? Sign Up',
+                            style: const TextStyle(
+                              color: Colors.white70,
                               fontFamily: 'Cairo',
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
+                              fontSize: 14,
                             ),
                           ),
                         ),
@@ -173,30 +262,40 @@ class _LoginScreenState extends State<LoginScreen>
                         const SizedBox(height: 16),
 
                         // 🔵 Google Sign In
-                        ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: Image.asset(
-                            AppAssets.googleIcon,
-                            width: 24,
-                            height: 24,
-                          ),
-                          label: const Text(
-                            'Sign in with Google',
-                            style: TextStyle(
-                              fontFamily: 'Cairo',
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black87,
-                            minimumSize: const Size.fromHeight(50),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 5,
-                          ),
+                        BlocBuilder<AuthBloc, AuthState>(
+                          builder: (context, state) {
+                            return ElevatedButton.icon(
+                              onPressed: state is AuthLoading
+                                  ? null
+                                  : () {
+                                      context.read<AuthBloc>().add(
+                                            GoogleSignInRequested(),
+                                          );
+                                    },
+                              icon: Image.asset(
+                                AppAssets.googleIcon,
+                                width: 24,
+                                height: 24,
+                              ),
+                              label: const Text(
+                                'Sign in with Google',
+                                style: TextStyle(
+                                  fontFamily: 'Cairo',
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.black87,
+                                minimumSize: const Size.fromHeight(50),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                elevation: 5,
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),

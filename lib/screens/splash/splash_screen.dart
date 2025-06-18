@@ -1,5 +1,4 @@
 // splash_screen.dart
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../constants/assets.dart';
 
@@ -31,9 +30,10 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _controller, curve: const Interval(0.5, 1.0)),
     );
 
-    Future.delayed(const Duration(seconds: 4), () {
-      Navigator.pushReplacementNamed(context, '/login');
-    });
+    // Remove the hardcoded navigation - AuthWrapper will handle this
+    // Future.delayed(const Duration(seconds: 4), () {
+    //   Navigator.pushReplacementNamed(context, '/login');
+    // });
   }
 
   @override
